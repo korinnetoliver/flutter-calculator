@@ -32,7 +32,6 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _resultController = TextEditingController();
 
-  // Hard-coded exchange rates relative to USD
   final Map<String, double> _ratesFromUSD = {
     'USD': 1.0,
     'EUR': 0.92,
@@ -47,6 +46,9 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
   String _sourceCurrency = 'USD';
   String _targetCurrency = 'EUR';
   String _errorMessage = '';
+
+  // NEW: Conversion history list
+  final List<Map<String, String>> _history = [];
 
   void _convert() {
     final String input = _amountController.text.trim();
@@ -69,13 +71,21 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
       return;
     }
 
-    // Convert source -> USD -> target
     final double amountInUSD = amount / _ratesFromUSD[_sourceCurrency]!;
     final double result = amountInUSD * _ratesFromUSD[_targetCurrency]!;
 
     setState(() {
       _errorMessage = '';
       _resultController.text = result.toStringAsFixed(2);
+
+      // NEW: Add to history, keep only last 5
+      _history.insert(0, {
+        'from': '$input $_sourceCurrency',
+        'to': '${result.toStringAsFixed(2)} $_targetCurrency',
+      });
+      if (_history.length > 5) {
+        _history.removeLast();
+      }
     });
   }
 
@@ -86,6 +96,13 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
       _errorMessage = '';
       _sourceCurrency = 'USD';
       _targetCurrency = 'EUR';
+    });
+  }
+
+  // NEW: Clear history
+  void _clearHistory() {
+    setState(() {
+      _history.clear();
     });
   }
 
@@ -138,7 +155,7 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Header card
+            // Amount input card
             Card(
               elevation: 4,
               shape: RoundedRectangleBorder(
@@ -188,75 +205,67 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
                   borderRadius: BorderRadius.circular(16)),
               child: Padding(
                 padding: const EdgeInsets.all(20),
-                child: Column(
+                child: Row(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'From',
-                                style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.grey),
-                              ),
-                              const SizedBox(height: 8),
-                              _buildCurrencyDropdown(
-                                _sourceCurrency,
-                                (value) => setState(() {
-                                  _sourceCurrency = value!;
-                                  _resultController.clear();
-                                }),
-                              ),
-                            ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('From',
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey)),
+                          const SizedBox(height: 8),
+                          _buildCurrencyDropdown(
+                            _sourceCurrency,
+                            (value) => setState(() {
+                              _sourceCurrency = value!;
+                              _resultController.clear();
+                            }),
                           ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: Column(
-                            children: [
-                              const SizedBox(height: 22),
-                              IconButton(
-                                onPressed: _swapCurrencies,
-                                icon: const Icon(Icons.swap_horiz),
-                                style: IconButton.styleFrom(
-                                  backgroundColor: Theme.of(context)
-                                      .colorScheme
-                                      .primaryContainer,
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10)),
-                                ),
-                                tooltip: 'Swap currencies',
-                              ),
-                            ],
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 22),
+                          IconButton(
+                            onPressed: _swapCurrencies,
+                            icon: const Icon(Icons.swap_horiz),
+                            style: IconButton.styleFrom(
+                              backgroundColor: Theme.of(context)
+                                  .colorScheme
+                                  .primaryContainer,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10)),
+                            ),
+                            tooltip: 'Swap currencies',
                           ),
-                        ),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'To',
-                                style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.grey),
-                              ),
-                              const SizedBox(height: 8),
-                              _buildCurrencyDropdown(
-                                _targetCurrency,
-                                (value) => setState(() {
-                                  _targetCurrency = value!;
-                                  _resultController.clear();
-                                }),
-                              ),
-                            ],
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('To',
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey)),
+                          const SizedBox(height: 8),
+                          _buildCurrencyDropdown(
+                            _targetCurrency,
+                            (value) => setState(() {
+                              _targetCurrency = value!;
+                              _resultController.clear();
+                            }),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -275,13 +284,11 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Converted Amount',
-                      style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey),
-                    ),
+                    const Text('Converted Amount',
+                        style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey)),
                     const SizedBox(height: 8),
                     TextField(
                       controller: _resultController,
@@ -302,8 +309,8 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
                         padding: const EdgeInsets.only(top: 8),
                         child: Text(
                           '1 $_sourceCurrency = ${(_ratesFromUSD[_targetCurrency]! / _ratesFromUSD[_sourceCurrency]!).toStringAsFixed(4)} $_targetCurrency',
-                          style: const TextStyle(
-                              fontSize: 12, color: Colors.grey),
+                          style:
+                              const TextStyle(fontSize: 12, color: Colors.grey),
                         ),
                       ),
                   ],
@@ -351,7 +358,68 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
 
             const SizedBox(height: 24),
 
-            // Exchange rates reference
+            // NEW: Conversion history card
+            if (_history.isNotEmpty)
+              Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Recent Conversions',
+                            style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey),
+                          ),
+                          TextButton.icon(
+                            onPressed: _clearHistory,
+                            icon: const Icon(Icons.delete_outline, size: 16),
+                            label: const Text('Clear'),
+                            style: TextButton.styleFrom(
+                                foregroundColor: Colors.red),
+                          ),
+                        ],
+                      ),
+                      const Divider(),
+                      ...(_history.map((entry) => Padding(
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 6),
+                            child: Row(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(entry['from']!,
+                                    style: const TextStyle(fontSize: 14)),
+                                const Icon(Icons.arrow_forward,
+                                    size: 16, color: Colors.grey),
+                                Text(
+                                  entry['to']!,
+                                  style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .primary),
+                                ),
+                              ],
+                            ),
+                          ))),
+                    ],
+                  ),
+                ),
+              ),
+
+            const SizedBox(height: 16),
+
+            // Reference rates card
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(
@@ -375,10 +443,8 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
                       children: _ratesFromUSD.entries
                           .where((e) => e.key != 'USD')
                           .map((e) => Chip(
-                                label: Text(
-                                  '${e.key}: ${e.value}',
-                                  style: const TextStyle(fontSize: 12),
-                                ),
+                                label: Text('${e.key}: ${e.value}',
+                                    style: const TextStyle(fontSize: 12)),
                                 backgroundColor: Theme.of(context)
                                     .colorScheme
                                     .primaryContainer,
